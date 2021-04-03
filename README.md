@@ -43,3 +43,59 @@ Result: The imported project is listed in the Project Explorer view and files ar
 **From IDE**
 
 After being done with the downloading and opening project, select **Build** option from **Product** menu. After compilation process, user can run TurkishSpellChecker-Swift.
+
+For Developers
+============
+
++ [Creating SpellChecker](#creating-spellchecker)
++ [Spell Correction](#spell-correction)
+
+## Creating SpellChecker
+
+SpellChecker finds spelling errors and corrects them in Turkish. There are two types of spell checker available:
+
+* `SimpleSpellChecker`
+    
+    * To instantiate this, a `FsmMorphologicalAnalyzer` is needed. 
+        
+            let fsm = FsmMorphologicalAnalyzer()
+            let spellChecker = SimpleSpellChecker(fsm);  
+     
+* `NGramSpellChecker`,
+    
+    * To create an instance of this, both a `FsmMorphologicalAnalyzer` and a `NGram` is required. 
+    
+    * `FsmMorphologicalAnalyzer` can be instantiated as follows:
+        
+            let fsm = FsmMorphologicalAnalyzer()
+    
+    * `NGram` can be either trained from scratch or loaded from an existing model.
+        
+        * Training from scratch:
+                
+                let corpus = Corpus("corpus.txt")
+                let ngram = NGram(corpus.getAllWordsAsArrayList(), 1)
+                ngram.calculateNGramProbabilities(LaplaceSmoothing())
+                
+        *There are many smoothing methods available. For other smoothing methods, check [here](https://github.com/olcaytaner/NGram).*       
+        * Loading from an existing model:
+     
+                let ngram = NGram("ngram.txt")
+
+	*For further details, please check [here](https://github.com/starlangsoftware/NGram).*        
+            
+    * Afterwards, `NGramSpellChecker` can be created as below:
+        
+            let spellChecker = NGramSpellChecker(fsm, ngram)
+     
+
+## Spell Correction
+
+Spell correction can be done as follows:
+
+    let sentence = Sentence("Dıktor olaç yazdı")
+    let corrected = spellChecker.spellCheck(sentence)
+    
+Output:
+
+    Doktor ilaç yazdı
