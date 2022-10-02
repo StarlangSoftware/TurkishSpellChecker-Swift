@@ -8,7 +8,7 @@ final class NGramSpellCheckerTest: XCTestCase {
     
     func testSpellCheck() {
         let fsm = FsmMorphologicalAnalyzer()
-        let nGram = NGram<String>(fileName: "ngram.txt")
+        let nGram = NGram<String>(fileName: "ngram")
         let smoothing = NoSmoothing<String>()
         nGram.calculateNGramProbabilitiesSimple(simpleSmoothing: smoothing)
         let original = [Sentence(sentence: "demokratik cumhuriyet en kıymetli varlığımızdır"),
@@ -39,6 +39,39 @@ final class NGramSpellCheckerTest: XCTestCase {
                 Sentence(sentence: "minibü durağı"),
                 Sentence(sentence: "ntoer belgesi"),
                 Sentence(sentence: "")]
+        let nGramSpellChecker = NGramSpellChecker(fsm: fsm, nGram: nGram, rootNGram: true)
+        for i in 0..<modified.count {
+            XCTAssertEqual(original[i].description(), nGramSpellChecker.spellCheck(sentence: modified[i]).description())
+        }
+    }
+
+    func testSpellCheck2() {
+        let fsm = FsmMorphologicalAnalyzer()
+        let nGram = NGram<String>(fileName: "ngram")
+        let smoothing = NoSmoothing<String>()
+        nGram.calculateNGramProbabilitiesSimple(simpleSmoothing: smoothing)
+        let original = [Sentence(sentence: "yeni sezon başladı"),
+                        Sentence(sentence: "sırtıkara adındaki canlı , bir balıktır"),
+                        Sentence(sentence: "siyah ayı , ayıgiller familyasına ait bir ayı türüdür"),
+                        Sentence(sentence: "yeni sezon başladı gibi"),
+                        Sentence(sentence: "alışveriş için markete gitti"),
+                        Sentence(sentence: "küçük bir yalıçapkını geçti"),
+                        Sentence(sentence: "meslek odaları birliği yeniden toplandı"),
+                        Sentence(sentence: "yeni yılın sonrasında vakalarda artış oldu"),
+                        Sentence(sentence: "atomik saatin 10 mhz sinyali kalibrasyon hizmetlerinde referans olarak kullanılmaktadır"),
+                        Sentence(sentence: "rehberimiz bu bölgedeki çıngıraklı yılan varlığı hakkında konuştu"),
+                        Sentence(sentence: "bu son model cihaz 24 inç ekran büyüklüğünde ve 9 kg ağırlıktadır")]
+        let modified = [Sentence(sentence: "yenisezon başladı"),
+                        Sentence(sentence: "sırtı kara adındaki canlı , bir balıktır"),
+                        Sentence(sentence: "siyahayı , ayıgiller familyasına ait bir ayı türüdür"),
+                        Sentence(sentence: "yeni se zon başladı gibs"),
+                        Sentence(sentence: "alis veriş için markete gitit"),
+                        Sentence(sentence: "kucuk bri yalı çapkını gecti"),
+                        Sentence(sentence: "mes lek odaları birliği yendien toplandı"),
+                        Sentence(sentence: "yeniyılın sonrasında vakalarda artış oldu"),
+                        Sentence(sentence: "atomik saatin 10mhz sinyali kalibrasyon hizmetlerinde referans olarka kullanılmaktadır"),
+                        Sentence(sentence: "rehperimiz buı bölgedeki çıngıraklıyılan varlıgı hakkınd konustu"),
+                        Sentence(sentence: "bu sno model ciha 24inç ekran büyüklüğünde ve 9kg ağırlıktadır")]
         let nGramSpellChecker = NGramSpellChecker(fsm: fsm, nGram: nGram, rootNGram: true)
         for i in 0..<modified.count {
             XCTAssertEqual(original[i].description(), nGramSpellChecker.spellCheck(sentence: modified[i]).description())

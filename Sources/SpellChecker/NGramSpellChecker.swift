@@ -40,7 +40,7 @@ public class NGramSpellChecker : SimpleSpellChecker{
         - index: Index of the word
      - Returns: If the word is misspelled, null; otherwise the longest root word of the possible analyses.
      */
-    private func checkAnalysisAndSetRoot(sentence: Sentence, index: Int) -> Word?{
+    private func checkAnalysisAndSetRootForWordAtIndex(sentence: Sentence, index: Int) -> Word?{
         if index < sentence.wordCount() {
             let fsmParses = fsm.morphologicalAnalysis(surfaceForm: sentence.getWord(index: index).getName())
             if fsmParses.size() != 0 {
@@ -49,6 +49,18 @@ public class NGramSpellChecker : SimpleSpellChecker{
                 } else {
                     return sentence.getWord(index: index)
                 }
+            }
+        }
+        return nil
+    }
+    
+    private func checkAnalysisAndSetRoot(word: String)-> Word?{
+        let fsmParses = fsm.morphologicalAnalysis(surfaceForm: word)
+        if fsmParses.size() != 0{
+            if rootNGram{
+                return fsmParses.getParseWithLongestRootWord().getWord()
+            } else {
+                return Word(name: word)
             }
         }
         return nil
@@ -80,30 +92,89 @@ public class NGramSpellChecker : SimpleSpellChecker{
      */
     public override func spellCheck(sentence: Sentence) -> Sentence {
         let result : Sentence = Sentence()
-        var root : Word? = checkAnalysisAndSetRoot(sentence: sentence, index: 0)
+        var root : Word? = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: 0)
         var previousRoot : Word? = nil
-        var nextRoot = checkAnalysisAndSetRoot(sentence: sentence, index: 1)
+        var nextRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: 1)
         var previousProbability, nextProbability: Double
-        for i in 0..<sentence.wordCount() {
+        var i : Int = 0
+        while i < sentence.wordCount() {
+            var nextWord : Word? = nil
+            var previousWord : Word? = nil
+            var nextNextWord : Word? = nil
+            var previousPreviousWord : Word? = nil
             let word = sentence.getWord(index: i)
+            if i > 0{
+                previousWord = sentence.getWord(index: i - 1)
+            }
+            if i > 1{
+                previousPreviousWord = sentence.getWord(index: i - 2)
+            }
+            if i < sentence.wordCount() - 1{
+                nextWord = sentence.getWord(index: i + 1)
+            }
+            if i < sentence.wordCount() - 2{
+                nextNextWord = sentence.getWord(index: i + 2)
+            }
+            if forcedMisspellCheck(word: word, result: result){
+                previousRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: result, index: result.wordCount() - 1)
+                root = nextRoot
+                nextRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 2)
+                i = i + 1
+                continue
+            }
+            if  forcedBackwardMergeCheck(word: word, result: result, previousWord: previousWord){
+                previousRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: result, index: result.wordCount() - 1)
+                root = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 1)
+                nextRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 2)
+                i = i + 1
+                continue
+            }
+            if forcedForwardMergeCheck(word: word, result: result, nextWord: nextWord){
+                i = i + 1
+                previousRoot = self.checkAnalysisAndSetRootForWordAtIndex(sentence: result, index: result.wordCount() - 1)
+                root = self.checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 1)
+                nextRoot = self.checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 2)
+                i = i + 1
+                continue
+            }
+            if forcedSplitCheck(word: word, result: result) || forcedShortcutCheck(word: word, result: result){
+                previousRoot = self.checkAnalysisAndSetRootForWordAtIndex(sentence: result, index: result.wordCount() - 1)
+                root = nextRoot
+                nextRoot = self.checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 2)
+                i = i + 1
+                continue
+            }
             if root == nil{
-                let candidates = candidateList(word: word)
-                var bestCandidate : String = word.getName()
+                var candidates : [Candidate] = candidateList(word: word)
+                candidates.append(contentsOf: mergedCandidatesList(previousWord: previousWord, word: word, nextWord: nextWord))
+                candidates.append(contentsOf: splitCandidatesList(word: word))
+                var bestCandidate : Candidate = Candidate(candidate: word.getName(), _operator: Operator.NO_CHANGE)
                 var bestRoot : Word = word
                 var bestProbability : Double = threshold
                 for candidate in candidates {
-                    let fsmParses = fsm.morphologicalAnalysis(surfaceForm: candidate)
-                    if rootNGram {
-                        root = fsmParses.getParseWithLongestRootWord().getWord()
-                    } else {
-                        root = Word(name: candidate)
+                    if candidate.getOperator() == Operator.SPELL_CHECK || candidate.getOperator() == Operator.MISSPELLED_REPLACE{
+                        root = checkAnalysisAndSetRoot(word: candidate.getName())
+                    }
+                    if candidate.getOperator() == Operator.BACKWARD_MERGE && previousWord != nil && previousPreviousWord != nil{
+                        root = checkAnalysisAndSetRoot(word: previousWord!.getName() + word.getName())
+                        previousRoot = checkAnalysisAndSetRoot(word: previousPreviousWord!.getName())
+                    }
+                    if candidate.getOperator() == Operator.FORWARD_MERGE && nextWord != nil && nextNextWord != nil{
+                        root = checkAnalysisAndSetRoot(word: word.getName() + nextWord!.getName())
+                        nextRoot = checkAnalysisAndSetRoot(word: nextNextWord!.getName())
                     }
                     if previousRoot != nil {
+                        if (candidate.getOperator() == Operator.SPLIT){
+                            root = checkAnalysisAndSetRoot(word: candidate.getName().split(separator: " ").map(String.init)[0])
+                        }
                         previousProbability = getProbability(word1: previousRoot!.getName(), word2: root!.getName())
                     } else {
                         previousProbability = 0.0
                     }
                     if nextRoot != nil {
+                        if (candidate.getOperator() == Operator.SPLIT){
+                            root = checkAnalysisAndSetRoot(word: candidate.getName().split(separator: " ").map(String.init)[1])
+                        }
                         nextProbability = getProbability(word1: root!.getName(), word2: nextRoot!.getName())
                     } else {
                         nextProbability = 0.0
@@ -114,14 +185,26 @@ public class NGramSpellChecker : SimpleSpellChecker{
                         bestProbability = max(previousProbability, nextProbability)
                     }
                 }
+                if bestCandidate.getOperator() == Operator.FORWARD_MERGE {
+                    i = i + 1
+                }
+                if bestCandidate.getOperator() == Operator.BACKWARD_MERGE {
+                    result.replaceWord(i: i - 1, newWord: Word(name: bestCandidate.getName()))
+                } else{
+                    if bestCandidate.getOperator() == Operator.SPLIT{
+                        addSplitWords(multiWord: bestCandidate.getName(), result: result)
+                    } else {
+                        result.addWord(word: Word(name: bestCandidate.getName()))
+                    }
+                }
                 root = bestRoot
-                result.addWord(word: Word(name: bestCandidate))
             } else {
                 result.addWord(word: word)
             }
             previousRoot = root
             root = nextRoot!
-            nextRoot = checkAnalysisAndSetRoot(sentence: sentence, index: i + 2)
+            nextRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 2)
+            i = i + 1
         }
         return result
     }
