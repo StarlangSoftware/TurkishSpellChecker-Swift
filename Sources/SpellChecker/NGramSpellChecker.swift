@@ -155,13 +155,17 @@ public class NGramSpellChecker : SimpleSpellChecker{
                     if candidate.getOperator() == Operator.SPELL_CHECK || candidate.getOperator() == Operator.MISSPELLED_REPLACE{
                         root = checkAnalysisAndSetRoot(word: candidate.getName())
                     }
-                    if candidate.getOperator() == Operator.BACKWARD_MERGE && previousWord != nil && previousPreviousWord != nil{
+                    if candidate.getOperator() == Operator.BACKWARD_MERGE && previousWord != nil {
                         root = checkAnalysisAndSetRoot(word: previousWord!.getName() + word.getName())
-                        previousRoot = checkAnalysisAndSetRoot(word: previousPreviousWord!.getName())
+                        if previousPreviousWord != nil{
+                            previousRoot = checkAnalysisAndSetRoot(word: previousPreviousWord!.getName())
+                        }
                     }
-                    if candidate.getOperator() == Operator.FORWARD_MERGE && nextWord != nil && nextNextWord != nil{
+                    if candidate.getOperator() == Operator.FORWARD_MERGE && nextWord != nil {
                         root = checkAnalysisAndSetRoot(word: word.getName() + nextWord!.getName())
-                        nextRoot = checkAnalysisAndSetRoot(word: nextNextWord!.getName())
+                        if nextNextWord != nil {
+                            nextRoot = checkAnalysisAndSetRoot(word: nextNextWord!.getName())
+                        }
                     }
                     if previousRoot != nil {
                         if (candidate.getOperator() == Operator.SPLIT){
