@@ -39,7 +39,7 @@ final class NGramSpellCheckerTest: XCTestCase {
                 Sentence(sentence: "minibü durağı"),
                 Sentence(sentence: "ntoer belgesi"),
                 Sentence(sentence: "")]
-        let nGramSpellChecker = NGramSpellChecker(fsm: fsm, nGram: nGram, rootNGram: true)
+        let nGramSpellChecker = NGramSpellChecker(fsm: fsm, nGram: nGram, parameter: SpellCheckerParameter())
         for i in 0..<modified.count {
             XCTAssertEqual(original[i].description(), nGramSpellChecker.spellCheck(sentence: modified[i]).description())
         }
@@ -72,7 +72,7 @@ final class NGramSpellCheckerTest: XCTestCase {
                         Sentence(sentence: "atomik saatin 10mhz sinyali kalibrasyon hizmetlerinde referans olarka kullanılmaktadır"),
                         Sentence(sentence: "rehperimiz buı bölgedeki çıngıraklıyılan varlıgı hakkınd konustu"),
                         Sentence(sentence: "bu sno model ciha 24inç ekran büyüklüğünde ve 9kg ağırlıktadır")]
-        let nGramSpellChecker = NGramSpellChecker(fsm: fsm, nGram: nGram, rootNGram: true)
+        let nGramSpellChecker = NGramSpellChecker(fsm: fsm, nGram: nGram, parameter: SpellCheckerParameter())
         for i in 0..<modified.count {
             XCTAssertEqual(original[i].description(), nGramSpellChecker.spellCheck(sentence: modified[i]).description())
         }

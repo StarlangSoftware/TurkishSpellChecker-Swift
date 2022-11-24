@@ -14,8 +14,7 @@ import Dictionary
 public class NGramSpellChecker : SimpleSpellChecker{
     
     private var nGram : NGram<String>
-    private var rootNGram: Bool = true
-    private var threshold: Double = 0.0
+    private var parameter : SpellCheckerParameter
 
     /**
      * A constructor of {@link NGramSpellChecker} class which takes a {@link FsmMorphologicalAnalyzer} and an {@link NGram}
@@ -26,9 +25,9 @@ public class NGramSpellChecker : SimpleSpellChecker{
         - nGram: {@link NGram} type input.
         - rootNGram: This parameter must be true, if the nGram is NGram generated from the root words; false otherwise.
      */
-    public init(fsm: FsmMorphologicalAnalyzer, nGram: NGram<String>, rootNGram: Bool){
+    public init(fsm: FsmMorphologicalAnalyzer, nGram: NGram<String>, parameter: SpellCheckerParameter){
         self.nGram = nGram
-        self.rootNGram = rootNGram
+        self.parameter = parameter
         super.init(fsm: fsm)
     }
 
@@ -42,13 +41,32 @@ public class NGramSpellChecker : SimpleSpellChecker{
      */
     private func checkAnalysisAndSetRootForWordAtIndex(sentence: Sentence, index: Int) -> Word?{
         if index < sentence.wordCount() {
+            let wordName = sentence.getWord(index: index).getName()
+            let range1 = NSRange(location: 0, length: wordName.utf16.count)
+            let regex1 = try! NSRegularExpression(pattern: ".*\\d+.*")
+            let regex2 = try! NSRegularExpression(pattern: ".*[a-zA-ZçöğüşıÇÖĞÜŞİ]+.*")
+            if (regex1.firstMatch(in: wordName, options: [], range: range1) != nil && regex2.firstMatch(in: wordName, options: [], range: range1) != nil
+                 && !wordName.contains("'")) || wordName.count <= 3 {
+                return sentence.getWord(index: index)
+            }
             let fsmParses = fsm.morphologicalAnalysis(surfaceForm: sentence.getWord(index: index).getName())
             if fsmParses.size() != 0 {
-                if rootNGram{
+                if self.parameter.isRootNGram(){
                     return fsmParses.getParseWithLongestRootWord().getWord()
                 } else {
                     return sentence.getWord(index: index)
                 }
+            } else {
+                let upperCaseWordName = Word.toCapital(s: wordName)
+                let upperCaseFsmParses = fsm.morphologicalAnalysis(surfaceForm: upperCaseWordName)
+                if upperCaseFsmParses.size() != 0{
+                    if parameter.isRootNGram() {
+                        return upperCaseFsmParses.getParseWithLongestRootWord().getWord()
+                    } else {
+                        return sentence.getWord(index: index)
+                    }
+                }
+
             }
         }
         return nil
@@ -57,17 +75,13 @@ public class NGramSpellChecker : SimpleSpellChecker{
     private func checkAnalysisAndSetRoot(word: String)-> Word?{
         let fsmParses = fsm.morphologicalAnalysis(surfaceForm: word)
         if fsmParses.size() != 0{
-            if rootNGram{
+            if self.parameter.isRootNGram(){
                 return fsmParses.getParseWithLongestRootWord().getWord()
             } else {
                 return Word(name: word)
             }
         }
         return nil
-    }
-    
-    public func setThreshold(threshold: Double){
-        self.threshold = threshold
     }
     
     private func getProbability(word1: String, word2: String) -> Double{
@@ -115,21 +129,21 @@ public class NGramSpellChecker : SimpleSpellChecker{
             if i < sentence.wordCount() - 2{
                 nextNextWord = sentence.getWord(index: i + 2)
             }
-            if forcedMisspellCheck(word: word, result: result){
+            if forcedMisspellCheck(word: word, result: result) {
                 previousRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: result, index: result.wordCount() - 1)
                 root = nextRoot
                 nextRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 2)
                 i = i + 1
                 continue
             }
-            if  forcedBackwardMergeCheck(word: word, result: result, previousWord: previousWord){
+            if forcedBackwardMergeCheck(word: word, result: result, previousWord: previousWord) || forcedSuffixMergeCheck(word: word, result: result, previousWord: previousWord){
                 previousRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: result, index: result.wordCount() - 1)
                 root = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 1)
                 nextRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 2)
                 i = i + 1
                 continue
             }
-            if forcedForwardMergeCheck(word: word, result: result, nextWord: nextWord){
+            if forcedForwardMergeCheck(word: word, result: result, nextWord: nextWord) || forcedHyphenMergeCheck(word: word, result: result, previousWord: previousWord, nextWord: nextWord){
                 i = i + 1
                 previousRoot = self.checkAnalysisAndSetRootForWordAtIndex(sentence: result, index: result.wordCount() - 1)
                 root = self.checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 1)
@@ -137,20 +151,31 @@ public class NGramSpellChecker : SimpleSpellChecker{
                 i = i + 1
                 continue
             }
-            if forcedSplitCheck(word: word, result: result) || forcedShortcutCheck(word: word, result: result){
+            if forcedSplitCheck(word: word, result: result) || forcedShortcutSplitCheck(word: word, result: result){
                 previousRoot = self.checkAnalysisAndSetRootForWordAtIndex(sentence: result, index: result.wordCount() - 1)
                 root = nextRoot
                 nextRoot = self.checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 2)
                 i = i + 1
                 continue
             }
-            if root == nil{
-                var candidates : [Candidate] = candidateList(word: word)
+            if parameter.isDeMiCheck() {
+                if forcedDeDaSplitCheck(word: word, result: result) || forcedQuestionSuffixSplitCheck(word: word, result: result) {
+                    previousRoot = self.checkAnalysisAndSetRootForWordAtIndex(sentence: result, index: result.wordCount() - 1)
+                    root = nextRoot
+                    nextRoot = checkAnalysisAndSetRootForWordAtIndex(sentence: sentence, index: i + 2)
+                    continue
+                }
+            }
+            if root == nil || (word.getName().count <= 3 && fsm.morphologicalAnalysis(surfaceForm: word.getName()).size() == 0){
+                var candidates : [Candidate] = []
+                if root == nil{
+                    candidates.append(contentsOf: candidateList(word: word))
+                    candidates.append(contentsOf: splitCandidatesList(word: word))
+                }                
                 candidates.append(contentsOf: mergedCandidatesList(previousWord: previousWord, word: word, nextWord: nextWord))
-                candidates.append(contentsOf: splitCandidatesList(word: word))
                 var bestCandidate : Candidate = Candidate(candidate: word.getName(), _operator: Operator.NO_CHANGE)
                 var bestRoot : Word = word
-                var bestProbability : Double = threshold
+                var bestProbability : Double = self.parameter.getThreshold()
                 for candidate in candidates {
                     if candidate.getOperator() == Operator.SPELL_CHECK || candidate.getOperator() == Operator.MISSPELLED_REPLACE{
                         root = checkAnalysisAndSetRoot(word: candidate.getName())

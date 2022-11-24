@@ -16,8 +16,9 @@ public class SimpleSpellChecker : SpellChecker{
     var mergedWords: [String : String] = [:]
     var splitWords: [String : String] = [:]
     var shortcuts: [String] = ["cc", "cm2", "cm", "gb", "ghz", "gr", "gram", "hz", "inc", "inch", "inç",
-                               "kg", "kw", "kva", "litre", "lt", "m2", "m3", "mah", "mb", "metre", "mg", "mhz", "ml", "mm", "mp", "ms",
-                               "mt", "mv", "tb", "tl", "va", "volt", "watt", "ah", "hp"]
+                               "kg", "kw", "kva", "litre", "lt", "m2", "m3", "mah", "mb", "metre", "mg", "mhz", "ml", "mm", "mp", "ms", "mt", "mv", "tb", "tl", "va", "volt", "watt", "ah", "hp", "oz", "rpm", "dpi", "ppm", "ohm", "kwh", "kcal", "kbit", "mbit", "gbit", "bit", "byte", "mbps", "gbps", "cm3", "mm2", "mm3", "khz", "ft", "db", "sn"]
+    var conditionalShortcuts: [String] = ["g", "v", "m", "l", "w", "s"]
+    var questionSuffixList: [String] = ["mi", "mı", "mu", "mü", "miyim", "misin", "miyiz", "midir", "miydi", "mıyım", "mısın", "mıyız", "mıdır", "mıydı", "muyum", "musun", "muyuz", "mudur", "muydu", "müyüm", "müsün", "müyüz", "müdür", "müydü", "miydim", "miydin", "miydik", "miymiş", "mıydım", "mıydın", "mıydık", "mıymış", "muydum", "muydun", "muyduk", "muymuş", "müydüm", "müydün", "müydük", "müymüş", "misiniz", "mısınız", "musunuz", "müsünüz", "miyimdir", "misindir", "miyizdir", "miydiniz", "miydiler", "miymişim", "miymişiz", "mıyımdır", "mısındır", "mıyızdır", "mıydınız", "mıydılar", "mıymışım", "mıymışız", "muyumdur", "musundur", "muyuzdur", "muydunuz", "muydular", "muymuşum", "muymuşuz", "müyümdür", "müsündür", "müyüzdür", "müydünüz", "müydüler", "müymüşüm", "müymüşüz", "miymişsin", "miymişler", "mıymışsın", "mıymışlar", "muymuşsun", "muymuşlar", "müymüşsün", "müymüşler", "misinizdir", "mısınızdır", "musunuzdur", "müsünüzdür"]
     
     /**
      * A constructor of {@link SimpleSpellChecker} class which takes a {@link FsmMorphologicalAnalyzer} as an input and
@@ -153,20 +154,21 @@ public class SimpleSpellChecker : SpellChecker{
             if i < sentence.wordCount() - 1{
                 nextWord = sentence.getWord(index: i + 1)
             }
-            if forcedMisspellCheck(word: word, result: result) || forcedBackwardMergeCheck(word: word, result: result, previousWord: previousWord){
+            if forcedMisspellCheck(word: word, result: result) || forcedBackwardMergeCheck(word: word, result: result, previousWord: previousWord) || forcedSuffixMergeCheck(word: word, result: result, previousWord: previousWord){
                 i = i + 1
                 continue
             }
-            if forcedForwardMergeCheck(word: word, result: result, nextWord: nextWord){
+            if forcedForwardMergeCheck(word: word, result: result, nextWord: nextWord) || forcedHyphenMergeCheck(word: word, result: result, previousWord: previousWord, nextWord: nextWord){
                 i = i + 2
                 continue
             }
-            if forcedSplitCheck(word: word, result: result) || forcedShortcutCheck(word: word, result: result){
+            if forcedSplitCheck(word: word, result: result) || forcedShortcutSplitCheck(word: word, result: result) || forcedDeDaSplitCheck(word: word, result: result) || forcedQuestionSuffixSplitCheck(word: word, result: result){
                 i = i + 1
                 continue
             }
             let fsmParseList = fsm.morphologicalAnalysis(surfaceForm: word.getName())
-            if fsmParseList.size() == 0{
+            let upperCaseFsmParseList = fsm.morphologicalAnalysis(surfaceForm: Word.toCapital(s: word.getName()))
+            if fsmParseList.size() == 0 && upperCaseFsmParseList.size() == 0{
                 var candidates : [Candidate] = mergedCandidatesList(previousWord: previousWord, word: word, nextWord: nextWord)
                 if candidates.count < 1{
                     candidates = candidateList(word: word)
@@ -248,19 +250,128 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
-    public func forcedShortcutCheck(word: Word, result: Sentence)-> Bool{
-        var shortcutRegex : String = "[0-9]+(" + shortcuts[0]
+    public func forcedShortcutSplitCheck(word: Word, result: Sentence)-> Bool{
+        var shortcutRegex : String = "(([1-9][0-9]*)|[0])(([.]|[,])[0-9]*)?(" + shortcuts[0]
         for i in 1..<shortcuts.count{
             shortcutRegex += "|" + shortcuts[i]
         }
         shortcutRegex += ")"
-        let range = NSRange(location: 0, length: word.getName().utf16.count)
-        let regex = try! NSRegularExpression(pattern: shortcutRegex)
-        if regex.firstMatch(in: word.getName(), options: [], range: range) != nil{
+        let range1 = NSRange(location: 0, length: word.getName().utf16.count)
+        let regex1 = try! NSRegularExpression(pattern: shortcutRegex)
+        var conditionalShortcutRegex : String = "(([1-9][0-9]{0,2})|[0])(([.]|[,])[0-9]*)?(" + conditionalShortcuts[0]
+        for i in 1..<conditionalShortcuts.count{
+            conditionalShortcutRegex += "|" + conditionalShortcuts[i]
+        }
+        conditionalShortcutRegex += ")"
+        let range2 = NSRange(location: 0, length: word.getName().utf16.count)
+        let regex2 = try! NSRegularExpression(pattern: conditionalShortcutRegex)
+        if regex1.firstMatch(in: word.getName(), options: [], range: range1) != nil || regex2.firstMatch(in: word.getName(), options: [], range: range2) != nil{
             let pair = getSplitPair(word: word)
             result.addWord(word: Word(name: pair.0))
             result.addWord(word: Word(name: pair.1))
             return true
+        }
+        return false
+    }
+    
+    public func forcedDeDaSplitCheck(word: Word, result: Sentence)-> Bool{
+        let wordName = word.getName()
+        let capitalizedWordName = Word.toCapital(s: wordName)
+        var txtWord : TxtWord? = nil
+        if wordName.hasSuffix("da") || wordName.hasSuffix("de") {
+            if fsm.morphologicalAnalysis(surfaceForm: wordName).size() == 0 && fsm.morphologicalAnalysis(surfaceForm: capitalizedWordName).size() == 0 {
+                let newWordName = String(wordName[..<wordName.index(wordName.startIndex, offsetBy: wordName.count - 2)])
+                let fsmParseList = fsm.morphologicalAnalysis(surfaceForm: newWordName)
+                let txtNewWord = fsm.getDictionary().getWord(name: Word.lowercase(s: newWordName)) as? TxtWord
+                if (txtNewWord != nil && txtNewWord!.isProperNoun()) {
+                    if (fsm.morphologicalAnalysis(surfaceForm: newWordName + "'" + "da").size() > 0) {
+                        result.addWord(word: Word(name: newWordName + "'" + "da"))
+                    }
+                    else {
+                        result.addWord(word: Word(name: newWordName + "'" + "de"))
+                    }
+                    return true
+                }
+                if fsmParseList.size() > 0 {
+                    txtWord = fsm.getDictionary().getWord(name: fsmParseList.getParseWithLongestRootWord().getWord().getName()) as? TxtWord
+                }
+                if (txtWord != nil && !txtWord!.isCode()) {
+                    result.addWord(word: Word(name: newWordName))
+                    if (TurkishLanguage.isBackVowel(ch: Word.lastVowel(stem: newWordName))) {
+                        if (txtWord!.notObeysVowelHarmonyDuringAgglutination()) {
+                            result.addWord(word: Word(name: "de"))
+                        }
+                        else {
+                            result.addWord(word: Word(name: "da"))
+                        }
+                    } else if (txtWord!.notObeysVowelHarmonyDuringAgglutination()) {
+                        result.addWord(word: Word(name: "da"))
+                    }
+                    else {
+                        result.addWord(word: Word(name: "de"))
+                    }
+                    return true
+                }
+            }
+        }
+        return false
+    }
+    
+    public func forcedSuffixMergeCheck(word: Word, result: Sentence, previousWord: Word?)-> Bool{
+        let liList = ["li", "lı", "lu", "lü"]
+        let likList = ["lik", "lık", "luk", "lük"]
+        if liList.contains(word.getName()) || likList.contains(word.getName()) {
+            let range1 = NSRange(location: 0, length: previousWord!.getName().utf16.count)
+            let regex1 = try! NSRegularExpression(pattern: "[0-9]+")
+            if previousWord != nil && regex1.firstMatch(in: previousWord!.getName(), options: [], range: range1) != nil {
+                for suffix in liList {
+                    if word.getName().count == 2 && fsm.morphologicalAnalysis(surfaceForm: previousWord!.getName() + "'" + suffix).size() > 0 {
+                        result.replaceWord(i: result.wordCount() - 1, newWord: Word(name: previousWord!.getName() + "'" + suffix))
+                        return true
+                    }
+                }
+                for suffix in likList {
+                    if word.getName().count == 3 && fsm.morphologicalAnalysis(surfaceForm: previousWord!.getName() + "'" + suffix).size() > 0 {
+                        result.replaceWord(i: result.wordCount() - 1, newWord: Word(name: previousWord!.getName() + "'" + suffix))
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+    
+    public func forcedHyphenMergeCheck(word: Word, result: Sentence, previousWord: Word?, nextWord: Word?) -> Bool{
+        if word.getName() == "-" || word.getName() == "–" || word.getName() == "—" {
+            let range1 = NSRange(location: 0, length: previousWord!.getName().utf16.count)
+            let range2 = NSRange(location: 0, length: nextWord!.getName().utf16.count)
+            let regex1 = try! NSRegularExpression(pattern: "[a-zA-ZçöğüşıÇÖĞÜŞİ]+")
+            if previousWord != nil && nextWord != nil && regex1.firstMatch(in: previousWord!.getName(), options: [], range: range1) != nil && regex1.firstMatch(in: nextWord!.getName(), options: [], range: range2) != nil {
+                let newWordName = previousWord!.getName() + "-" + nextWord!.getName()
+                if (fsm.morphologicalAnalysis(surfaceForm: newWordName).size() > 0) {
+                    result.replaceWord(i: result.wordCount() - 1, newWord: Word(name: newWordName))
+                    return true
+                }
+            }
+        }
+        return false
+    }
+    
+    public func forcedQuestionSuffixSplitCheck(word: Word, result: Sentence) -> Bool{
+        let wordName = word.getName()
+        if (fsm.morphologicalAnalysis(surfaceForm: wordName).size() > 0) {
+            return false;
+        }
+        for questionSuffix in questionSuffixList {
+            if wordName.hasSuffix(questionSuffix) {
+                let newWordName = String(wordName[..<wordName.index(wordName.endIndex, offsetBy: -questionSuffix.count)])
+                let txtWord = fsm.getDictionary().getWord(name: newWordName) as? TxtWord
+                if fsm.morphologicalAnalysis(surfaceForm: newWordName).size() > 0 && txtWord != nil && !txtWord!.isCode() {
+                    result.addWord(word: Word(name: newWordName))
+                    result.addWord(word: Word(name: questionSuffix))
+                    return true
+                }
+            }
         }
         return false
     }
