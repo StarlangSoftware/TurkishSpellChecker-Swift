@@ -237,8 +237,9 @@ public class SimpleSpellChecker : SpellChecker{
     
     public func addSplitWords(multiWord: String, result: Sentence){
         let words = multiWord.split(separator: " ")
-        result.addWord(word: Word(name: String(words[0])))
-        result.addWord(word: Word(name: String(words[1])))
+        for word in words {
+            result.addWord(word: Word(name: String(word)))
+        }
     }
     
     public func forcedSplitCheck(word: Word, result: Sentence)-> Bool{
@@ -452,7 +453,11 @@ public class SimpleSpellChecker : SpellChecker{
             let lines : [String] = fileContent.split(whereSeparator: \.isNewline).map(String.init)
             for line in lines{
                 let list : [String] = line.split(separator: " ").map(String.init)
-                self.splitWords[list[0]] = list[1] + " " + list[2]
+                var result : String = list[1]
+                for i in 2..<list.count{
+                    result = result + " " + list[i]
+                }
+                self.splitWords[list[0]] = result
             }
         }catch{
         }
