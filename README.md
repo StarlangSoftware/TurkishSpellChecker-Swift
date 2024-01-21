@@ -11,7 +11,7 @@ Video Lectures
 For Developers
 ============
 
-You can also see [Java](https://github.com/starlangsoftware/TurkishSpellChecker), [Python](https://github.com/starlangsoftware/TurkishSpellChecker-Py), [Cython](https://github.com/starlangsoftware/TurkishSpellChecker-Cy), [C++](https://github.com/starlangsoftware/TurkishSpellChecker-CPP), or [C#](https://github.com/starlangsoftware/TurkishSpellChecker-CS) repository.
+You can also see [Java](https://github.com/starlangsoftware/TurkishSpellChecker), [Python](https://github.com/starlangsoftware/TurkishSpellChecker-Py), [Cython](https://github.com/starlangsoftware/TurkishSpellChecker-Cy), [C++](https://github.com/starlangsoftware/TurkishSpellChecker-CPP), [C](https://github.com/starlangsoftware/TurkishSpellChecker-C), or [C#](https://github.com/starlangsoftware/TurkishSpellChecker-CS) repository.
 
 ## Requirements
 
