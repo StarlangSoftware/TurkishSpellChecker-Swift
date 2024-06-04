@@ -72,6 +72,10 @@ public class NGramSpellChecker : SimpleSpellChecker{
         return nil
     }
     
+    /// Checks the morphological analysis of the given word. If there is no misspelling, it returns
+    /// the longest root word of the possible analysis.
+    /// - Parameter word: Word to be analyzed.
+    /// - Returns: If the word is misspelled, null; otherwise the longest root word of the possible analysis.
     private func checkAnalysisAndSetRoot(word: String)-> Word?{
         let fsmParses = fsm.morphologicalAnalysis(surfaceForm: word)
         if fsmParses.size() != 0{
@@ -84,6 +88,11 @@ public class NGramSpellChecker : SimpleSpellChecker{
         return nil
     }
     
+    /// Returns the bi-gram probability P(word2 | word1) for the given bigram consisting of two words.
+    /// - Parameters:
+    ///   - word1: First word in bi-gram
+    ///   - word2: Second word in bi-gram
+    /// - Returns: Bi-gram probability P(word2 | word1)
     private func getProbability(word1: String, word2: String) -> Double{
         return nGram.getProbability(word1, word2)
     }

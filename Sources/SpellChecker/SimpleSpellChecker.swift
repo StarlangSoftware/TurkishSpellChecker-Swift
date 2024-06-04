@@ -204,6 +204,12 @@ public class SimpleSpellChecker : SpellChecker{
         return result
     }
     
+    /// Checks if the given word is a misspelled word according to the misspellings list,
+    /// and if it is, then replaces it with its correct form in the given sentence.
+    /// - Parameters:
+    ///   - word: the {@link Word} to check for misspelling
+    ///   - result: the {@link Sentence} that the word belongs to
+    /// - Returns: true if the word was corrected, false otherwise
     public func forcedMisspellCheck(word: Word, result: Sentence)-> Bool{
         let forcedReplacement = fsm.getDictionary().getCorrectForm(misspelledWord: word.getName())
         if forcedReplacement != ""{
@@ -213,6 +219,13 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
+    /// Checks if the given word and its preceding word need to be merged according to the merged list.
+    /// If the merge is needed, the word and its preceding word are replaced with their merged form in the given sentence.
+    /// - Parameters:
+    ///   - word: the {@link Word} to check for merge
+    ///   - result: the {@link Sentence} that the word belongs to
+    ///   - previousWord: the preceding {@link Word} of the given {@link Word}
+    /// - Returns: true if the word was merged, false otherwise
     public func forcedBackwardMergeCheck(word: Word, result: Sentence, previousWord: Word?)->Bool{
         if previousWord != nil{
             let forcedReplacement = getCorrectForm(wordName: result.getWord(index: result.wordCount() - 1).getName() + " " + word.getName(), dictionary: mergedWords)
@@ -224,6 +237,13 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
+    /// Checks if the given word and its next word need to be merged according to the merged list.
+    /// If the merge is needed, the word and its next word are replaced with their merged form in the given sentence.
+    /// - Parameters:
+    ///   - word: the {@link Word} to check for merge
+    ///   - result: the {@link Sentence} that the word belongs to
+    ///   - nextWord: the next {@link Word} of the given {@link Word}
+    /// - Returns: true if the word was merged, false otherwise
     public func forcedForwardMergeCheck(word: Word, result: Sentence, nextWord: Word?)->Bool{
         if nextWord != nil{
             let forcedReplacement = getCorrectForm(wordName: word.getName() + " " + nextWord!.getName(), dictionary: mergedWords)
@@ -235,6 +255,10 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
+    /// Given a multiword form, splits it and adds it to the given sentence.
+    /// - Parameters:
+    ///   - multiWord: multiword form to split
+    ///   - result: the {@link Sentence} to add the split words to
     public func addSplitWords(multiWord: String, result: Sentence){
         let words = multiWord.split(separator: " ")
         for word in words {
@@ -242,6 +266,12 @@ public class SimpleSpellChecker : SpellChecker{
         }
     }
     
+    /// Checks if the given word needs to be split according to the split list.
+    /// If the split is needed, the word is replaced with its split form in the given sentence.
+    /// - Parameters:
+    ///   - word: the {@link Word} to check for split
+    ///   - result: the {@link Sentence} that the word belongs to
+    /// - Returns: true if the word was split, false otherwise
     public func forcedSplitCheck(word: Word, result: Sentence)-> Bool{
         let forcedReplacement = getCorrectForm(wordName: word.getName(), dictionary: splitWords)
         if forcedReplacement != ""{
@@ -251,6 +281,12 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
+    /// Checks if the given word is a shortcut form, such as "5kg" or "2.5km".
+    /// If it is, it splits the word into its number and unit form and adds them to the given sentence.
+    /// - Parameters:
+    ///   - word: the {@link Word} to check for shortcut split
+    ///   - result: the {@link Sentence} that the word belongs to
+    /// - Returns: true if the word was split, false otherwise
     public func forcedShortcutSplitCheck(word: Word, result: Sentence)-> Bool{
         var shortcutRegex : String = "(([1-9][0-9]*)|[0])(([.]|[,])[0-9]*)?(" + shortcuts[0]
         for i in 1..<shortcuts.count{
@@ -275,6 +311,12 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
+    /// Checks if the given word has a "da" or "de" suffix that needs to be split according to a predefined set of rules.
+    /// If the split is needed, the word is replaced with its bare form and "da" or "de" in the given sentence.
+    /// - Parameters:
+    ///   - word: the {@link Word} to check for "da" or "de" split
+    ///   - result: the {@link Sentence} that the word belongs to
+    /// - Returns: true if the word was split, false otherwise
     public func forcedDeDaSplitCheck(word: Word, result: Sentence)-> Bool{
         let wordName = word.getName()
         let capitalizedWordName = Word.toCapital(s: wordName)
@@ -318,6 +360,13 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
+    /// Checks if the given word is a suffix like 'li' or 'lik' that needs to be merged with its preceding word which is a number.
+    /// If the merge is needed, the word and its preceding word are replaced with their merged form in the given sentence.
+    /// - Parameters:
+    ///   - word: the {@link Word} to check for merge
+    ///   - result: the {@link Sentence} that the word belongs to
+    ///   - previousWord: the preceding {@link Word} of the given {@link Word}
+    /// - Returns: true if the word was merged, false otherwise
     public func forcedSuffixMergeCheck(word: Word, result: Sentence, previousWord: Word?)-> Bool{
         let liList = ["li", "lı", "lu", "lü"]
         let likList = ["lik", "lık", "luk", "lük"]
@@ -342,6 +391,17 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
+    /// Checks whether the next word and the previous word can be merged if the current word is a hyphen,
+    /// an en-dash or an em-dash.
+    /// If the previous word and the next word exist and they are valid words,
+    /// it merges the previous word and the next word into a single word and add the new word to the sentence
+    /// If the merge is valid, it returns true.
+    /// - Parameters:
+    ///   - word: current {@link Word}
+    ///   - result: the {@link Sentence} that the word belongs to
+    ///   - previousWord: the {@link Word} before current word
+    ///   - nextWord: the {@link Word} after current word
+    /// - Returns: true if merge is valid, false otherwise
     public func forcedHyphenMergeCheck(word: Word, result: Sentence, previousWord: Word?, nextWord: Word?) -> Bool{
         if word.getName() == "-" || word.getName() == "–" || word.getName() == "—" {
             let range1 = NSRange(location: 0, length: previousWord!.getName().utf16.count)
@@ -358,6 +418,13 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
+    /// Checks whether the current word ends with a valid question suffix and split it if it does.
+    /// It splits the word with the question suffix and adds the two new words to the sentence.
+    /// If the split is valid, it returns true.
+    /// - Parameters:
+    ///   - word: current {@link Word}
+    ///   - result: the {@link Sentence} that the word belongs to
+    /// - Returns: true if split is valid, false otherwise
     public func forcedQuestionSuffixSplitCheck(word: Word, result: Sentence) -> Bool{
         let wordName = word.getName()
         if (fsm.morphologicalAnalysis(surfaceForm: wordName).size() > 0) {
@@ -377,6 +444,12 @@ public class SimpleSpellChecker : SpellChecker{
         return false
     }
     
+    /// Generates a list of merged candidates for the word and previous and next words.
+    /// - Parameters:
+    ///   - previousWord: The previous {@link Word} in the sentence.
+    ///   - word: The {@link Word} currently being checked.
+    ///   - nextWord: The next {@link Word} in the sentence.
+    /// - Returns: A list of merged candidates.
     public func mergedCandidatesList(previousWord: Word?, word: Word, nextWord: Word?)->[Candidate]{
         var mergedCandidates : [Candidate] = []
         var backwardMergeCandidate : Candidate? = nil
@@ -400,6 +473,9 @@ public class SimpleSpellChecker : SpellChecker{
         return mergedCandidates
     }
     
+    /// Generates a list of split candidates for the given word.
+    /// - Parameter word: The {@link Word} currently being checked.
+    /// - Returns: A list of split candidates.
     public func splitCandidatesList(word: Word) -> [Candidate]{
         var splitCandidates : [Candidate] = []
         for i in 4..<word.getName().count - 3 {
@@ -414,6 +490,11 @@ public class SimpleSpellChecker : SpellChecker{
         return splitCandidates
     }
     
+    /// Returns the correct form of a given word by looking it up in the provided dictionary.
+    /// - Parameters:
+    ///   - wordName: the name of the word to look up in the dictionary
+    ///   - dictionary: the dictionary to use for looking up the word
+    /// - Returns: the correct form of the word, as stored in the dictionary, or null if the word is not found
     public func getCorrectForm(wordName: String, dictionary: [String : String]) -> String?{
         if dictionary[wordName] != nil{
             return dictionary[wordName]
@@ -421,6 +502,9 @@ public class SimpleSpellChecker : SpellChecker{
         return ""
     }
     
+    /// Splits a word into two parts, a key and a value, based on the first non-numeric/non-punctuation character.
+    /// - Parameter word: the {@link Word} object to split
+    /// - Returns: an {@link AbstractMap.SimpleEntry} object containing the key (numeric/punctuation characters) and the value (remaining characters)
     private func getSplitPair(word: Word) -> (String, String){
         var key : String = ""
         var j : Int = 0
@@ -436,6 +520,7 @@ public class SimpleSpellChecker : SpellChecker{
         return (key, value)
     }
     
+    /// Loads the merged and split lists from the specified files.
     private func loadDictionaries(){
         var myUrl = Bundle.module.url(forResource: "merged", withExtension: "txt")
         do{
